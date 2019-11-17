@@ -22,29 +22,57 @@ app.get('/', async (req, res) => {
 app.get('/books', async (req, res) => {
     const books = await Book.findAll()
     //const booksJSON = books.toJSON()
-    res.render('index', {books: books})
+    res.render('index', {books: books, title: 'Books'})
 })
 
-app.get('/books/new', async (req, res) => {
-    res.render('new-book', {handleNewBookSubmit: handleNewBookSubmit})
+app.get('/books/new', (req, res) => {
+    res.render('new-book', {title: 'New Book'})
 })
 
 app.post('/books/new', async (req, res) => {
-    await Book.create(req.body)
-    res.redirect('/books')
+    let book;
+    try {
+        book = await Book.create(req.body)
+        res.redirect('/books')
+    } catch (error) {
+        if (error.name === "SequelizeValidationError") {
+            console.log('THERE WAS AN VALIDATION ERROR!')
+            book = await Book.build(req.body);
+            res.render('new-book', {title: 'New Book', book: book, errors: error.errors})
+        } else {
+            throw error
+        }
+    }
+    //await Book.create(req.body)
+    //res.redirect('/books')
 })
 
 app.get('/books/:id', async (req, res) => {
     const book = await Book.findByPk(req.params.id)
-    res.render('update-book', {book: book})
+    book ? res.render('update-book', {book: book, title: book.title}) : res.render('error')
+
+
+
     //console.log(book)
 })
 
 app.post('/books/:id', async (req, res) => {
-    const book = await Book.findByPk(req.params.id)
+    let book;
+    try {
+        book = await Book.findByPk(req.params.id)
+        await book.update(req.body)
+        res.redirect('/books')
+    } catch (error) {
+        if (error.name === "SequelizeValidationError") {
+            console.log('VALIDATION ERROR!!!')
+            res.render('update-book', {title: book.title, book: book, errors: error.errors})
+
+        }
+    }
+    //const book = await Book.findByPk(req.params.id)
     //console.log(req.body)
-    await book.update(req.body)
-    res.redirect('/books')
+    //await book.update(req.body)
+    //res.redirect('/books')
 })
 
 app.post('/books/:id/delete', async (req, res) => {
@@ -53,16 +81,24 @@ app.post('/books/:id/delete', async (req, res) => {
     res.redirect('/books')
 })
 
+app.use((req, res, next) => {
+    const err = new Error('Not found')
+    err.status = 404;
+    next(err)
+})
 
-const x = async () => {
-    const book = await Book.findByPk(1);
-    console.log(book.toJSON())
-}
-x()
 
-const handleNewBookSubmit = () => {
-    console.log('New book submitted!')
-}
+app.use((err, req, res, next) => {
+    res.locals.error = err;
+    res.status(err.status);
+    const errorMessage = err.message
+    const errorStatus = err.status
+    res.render('page-not-found');
+    console.log(`Sorry, there was following error: ${errorMessage} status: ${errorStatus}`)
+})
+
+
+
 
 
 app.listen(port, () => console.log(`App listening on port ${port}`))
