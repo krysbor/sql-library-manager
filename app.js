@@ -11,24 +11,29 @@ app.set('view engine', 'pug');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: false }))
 
-
-
 /* ROUTES */
+
+const log = (e) => {
+    console.log(e.value)
+}
+
 
 app.get('/', async (req, res) => {
     res.redirect('/books')
 })
 
+//Shows the full list of books
 app.get('/books', async (req, res) => {
     const books = await Book.findAll()
-    //const booksJSON = books.toJSON()
-    res.render('index', {books: books, title: 'Books'})
+    res.render('index', {books: books, title: 'Books', log: log})
 })
 
+//Shows the create new book form.
 app.get('/books/new', (req, res) => {
     res.render('new-book', {title: 'New Book'})
 })
 
+//Posts a new book to the database.
 app.post('/books/new', async (req, res) => {
     let book;
     try {
@@ -36,26 +41,23 @@ app.post('/books/new', async (req, res) => {
         res.redirect('/books')
     } catch (error) {
         if (error.name === "SequelizeValidationError") {
-            console.log('THERE WAS AN VALIDATION ERROR!')
+            console.log('Validation error!')
             book = await Book.build(req.body);
             res.render('new-book', {title: 'New Book', book: book, errors: error.errors})
         } else {
             throw error
         }
     }
-    //await Book.create(req.body)
-    //res.redirect('/books')
 })
 
+//Shows book detail form.
 app.get('/books/:id', async (req, res) => {
     const book = await Book.findByPk(req.params.id)
     book ? res.render('update-book', {book: book, title: book.title}) : res.render('error')
-
-
-
-    //console.log(book)
 })
 
+
+//Updates book info in the database.
 app.post('/books/:id', async (req, res) => {
     let book;
     try {
@@ -64,22 +66,22 @@ app.post('/books/:id', async (req, res) => {
         res.redirect('/books')
     } catch (error) {
         if (error.name === "SequelizeValidationError") {
-            console.log('VALIDATION ERROR!!!')
+            console.log('Validation error!')
             res.render('update-book', {title: book.title, book: book, errors: error.errors})
 
+        } else {
+            throw error
         }
     }
-    //const book = await Book.findByPk(req.params.id)
-    //console.log(req.body)
-    //await book.update(req.body)
-    //res.redirect('/books')
 })
 
+//Deletes a book
 app.post('/books/:id/delete', async (req, res) => {
     const book = await Book.findByPk(req.params.id)
     book.destroy()
     res.redirect('/books')
 })
+
 
 app.use((req, res, next) => {
     const err = new Error('Not found')
